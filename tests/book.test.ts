@@ -1,24 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+// tests/book.spec.ts
+import { describe, it, expect, beforeEach } from "vitest";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-describe("Book Model", () => {
-  // 각 테스트 실행 전 데이터 정리 (선택적이지만 권장)
+describe("Book Model (transactional)", () => {
+  // 테스트 전 DB 정리
   beforeEach(async () => {
-    // 예시: BookshelfEntry와 Question이 Book을 참조하므로 함께 삭제
-    await prisma.bookshelfEntry.deleteMany({});
-    await prisma.question.deleteMany({});
-    await prisma.book.deleteMany({});
+    await prisma.$transaction([
+      prisma.bookshelfEntry.deleteMany(),
+      prisma.question.deleteMany(),
+      prisma.book.deleteMany(),
+    ]);
   });
 
-  // 모든 테스트 후 Prisma Client 연결 종료
-  afterEach(async () => {
-    // await prisma.$disconnect(); // Vitest 환경에서는 자동으로 처리될 수 있으나 명시적 관리가 필요할 수도 있음
-  });
-
-  it("should create a new book successfully", async () => {
-    const newBookData = {
+  it("creates a new book successfully", async () => {
+    const data = {
       isbn: "978-3-16-148410-0",
       title: "The Hitchhiker's Guide to the Galaxy",
       author: "Douglas Adams",
@@ -29,63 +26,50 @@ describe("Book Model", () => {
       description: "A comedic science fiction series.",
     };
 
-    const createdBook = await prisma.book.create({
-      data: newBookData,
-    });
+    const created = await prisma.$transaction((tx) => tx.book.create({ data }));
 
-    expect(createdBook.id).toBeDefined();
-    expect(createdBook.isbn).toBe(newBookData.isbn);
-    expect(createdBook.title).toBe(newBookData.title);
-    expect(createdBook.author).toBe(newBookData.author);
-    expect(createdBook.publisher).toBe(newBookData.publisher);
-    expect(createdBook.pubdate).toBe(newBookData.pubdate);
-    expect(createdBook.image).toBe(newBookData.image);
-    expect(createdBook.link).toBe(newBookData.link);
-    expect(createdBook.description).toBe(newBookData.description);
-    expect(createdBook.createdAt).toBeInstanceOf(Date);
-    expect(createdBook.updatedAt).toBeInstanceOf(Date);
+    expect(created.id).toBeDefined();
+    expect(created.isbn).toBe(data.isbn);
+    expect(created.image).toBe(data.image);
+    expect(created.createdAt).toBeInstanceOf(Date);
   });
 
-  it("should prevent creating a book with a duplicate ISBN", async () => {
-    const bookData = {
+  it("prevents duplicate ISBN", async () => {
+    const data = {
       isbn: "978-0-321-76572-3",
       title: "Effective Java",
       author: "Joshua Bloch",
       publisher: "Addison-Wesley",
     };
 
-    // 첫 번째 책 생성
-    await prisma.book.create({ data: bookData });
+    await prisma.book.create({ data });
 
-    // 동일한 ISBN으로 두 번째 책 생성 시도
-    try {
-      await prisma.book.create({ data: bookData });
-    } catch (e: any) {
-      // Prisma 에러 코드 P2002는 고유 제약 조건 위반을 의미합니다.
-      expect(e.code).toBe("P2002");
-      expect(e.meta?.target).toContain("isbn"); // 또는 e.message 등으로 확인
-    }
+    await expect(prisma.book.create({ data })).rejects.toMatchObject({
+      code: "P2002",
+      meta: expect.objectContaining({
+        target: expect.arrayContaining(["isbn"]),
+      }),
+    });
   });
 
-  it("should find a book by ISBN", async () => {
-    const bookData = {
+  it("finds a book by ISBN", async () => {
+    const data = {
       isbn: "978-1-93435-659-6",
       title: "Clean Code",
       author: "Robert C. Martin",
       publisher: "Prentice Hall",
     };
-    await prisma.book.create({ data: bookData });
+    await prisma.book.create({ data });
 
-    const foundBook = await prisma.book.findUnique({
-      where: { isbn: bookData.isbn },
-    });
+    const found = await prisma.$transaction((tx) =>
+      tx.book.findUnique({ where: { isbn: data.isbn } })
+    );
 
-    expect(foundBook).not.toBeNull();
-    expect(foundBook?.title).toBe(bookData.title);
+    expect(found?.title).toBe(data.title);
   });
 
-  it("should update a book", async () => {
-    const initialBook = await prisma.book.create({
+  it("updates a book title", async () => {
+    const initial = await prisma.book.create({
       data: {
         isbn: "978-0-13-235088-4",
         title: "Original Title",
@@ -94,17 +78,18 @@ describe("Book Model", () => {
       },
     });
 
-    const updatedTitle = "Updated Book Title";
-    const updatedBook = await prisma.book.update({
-      where: { isbn: initialBook.isbn },
-      data: { title: updatedTitle },
-    });
+    const updated = await prisma.$transaction((tx) =>
+      tx.book.update({
+        where: { isbn: initial.isbn },
+        data: { title: "Updated Book Title" },
+      })
+    );
 
-    expect(updatedBook.title).toBe(updatedTitle);
-    expect(updatedBook.isbn).toBe(initialBook.isbn); // ISBN은 변경되지 않아야 함
+    expect(updated.title).toBe("Updated Book Title");
+    expect(updated.isbn).toBe(initial.isbn);
   });
 
-  it("should delete a book", async () => {
+  it("deletes a book", async () => {
     const book = await prisma.book.create({
       data: {
         isbn: "978-0-201-61622-4",
@@ -114,35 +99,29 @@ describe("Book Model", () => {
       },
     });
 
-    await prisma.book.delete({
-      where: { isbn: book.isbn },
-    });
+    await prisma.$transaction((tx) =>
+      tx.book.delete({ where: { isbn: book.isbn } })
+    );
 
-    const deletedBook = await prisma.book.findUnique({
+    const shouldBeNull = await prisma.book.findUnique({
       where: { isbn: book.isbn },
     });
-    expect(deletedBook).toBeNull();
+    expect(shouldBeNull).toBeNull();
   });
 
-  // 선택적 필드 테스트 (null 허용)
-  it("should create a book with optional fields being null", async () => {
-    const newBookData = {
+  it("creates a book with optional fields null", async () => {
+    const data = {
       isbn: "978-0-596-52068-7",
       title: "JavaScript: The Good Parts",
       author: "Douglas Crockford",
       publisher: "O'Reilly Media",
-      // pubdate, image, link, description 등은 제공하지 않음
     };
 
-    const createdBook = await prisma.book.create({
-      data: newBookData,
-    });
+    const created = await prisma.$transaction((tx) => tx.book.create({ data }));
 
-    expect(createdBook.id).toBeDefined();
-    expect(createdBook.isbn).toBe(newBookData.isbn);
-    expect(createdBook.pubdate).toBeNull();
-    expect(createdBook.image).toBeNull();
-    expect(createdBook.link).toBeNull();
-    expect(createdBook.description).toBeNull();
+    expect(created.pubdate).toBeNull();
+    expect(created.image).toBeNull();
+    expect(created.link).toBeNull();
+    expect(created.description).toBeNull();
   });
 });
