@@ -15,9 +15,11 @@ describe("Question Model", () => {
     await prisma.book.deleteMany({});
 
     // 테스트를 위한 Book 생성
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
     testBook = await prisma.book.create({
       data: {
-        isbn: `isbn_q_${Date.now()}`,
+        isbn: `isbn_q_${timestamp}_${randomSuffix}`,
         title: "Test Book for Questions",
         author: "Test Author",
         publisher: "Test Publisher",
@@ -25,7 +27,12 @@ describe("Question Model", () => {
     });
   });
 
-  // afterEach는 필요시 주석 해제
+  afterEach(async () => {
+    await prisma.answer.deleteMany({});
+    await prisma.question.deleteMany({});
+    await prisma.bookshelfEntry.deleteMany({});
+    await prisma.book.deleteMany({});
+  });
 
   it("should create a new question for a book", async () => {
     const questionContent = "이 책에서 가장 인상 깊었던 문장은 무엇인가요?";
@@ -75,9 +82,11 @@ describe("Question Model", () => {
       data: { bookIsbn: testBook.isbn, content: questionContent },
     });
 
+    const anotherTimestamp = Date.now();
+    const anotherRandomSuffix = Math.random().toString(36).substring(2, 7);
     const anotherBook = await prisma.book.create({
       data: {
-        isbn: `isbn_q_other_${Date.now()}`,
+        isbn: `isbn_q_other_${anotherTimestamp}_${anotherRandomSuffix}`,
         title: "Another Book",
         author: "Other Author",
         publisher: "Other Publisher",

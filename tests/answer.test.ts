@@ -18,17 +18,20 @@ describe("Answer Model", () => {
     await prisma.book.deleteMany({});
 
     // 테스트용 User 생성
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
     testUser = await prisma.user.create({
       data: {
-        email: `user_ans_${Date.now()}@example.com`,
+        email: `user_ans_${timestamp}_${randomSuffix}@example.com`,
         passwordHash: "hashedpassword",
+        name: "Test User for Answers",
       },
     });
 
     // 테스트용 Book 생성
     testBook = await prisma.book.create({
       data: {
-        isbn: `isbn_ans_${Date.now()}`,
+        isbn: `isbn_ans_${timestamp}_${randomSuffix}`,
         title: "Test Book for Answers",
         author: "Test Author",
         publisher: "Test Publisher",
@@ -44,7 +47,14 @@ describe("Answer Model", () => {
     });
   });
 
-  // afterEach는 필요시 주석 해제
+  afterEach(async () => {
+    await prisma.answerInterest.deleteMany({});
+    await prisma.answer.deleteMany({});
+    await prisma.question.deleteMany({});
+    await prisma.bookshelfEntry.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.book.deleteMany({});
+  });
 
   it("should create a new answer for a question by a user", async () => {
     const answerContent = "저는 이 책이 매우 감명 깊었다고 생각합니다.";

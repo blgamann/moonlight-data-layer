@@ -34,30 +34,41 @@ describe("Soulmate Model", () => {
     await prisma.user.deleteMany({});
 
     // 테스트용 사용자 생성 (ID 순서를 예측하기 위해 순차적으로 생성)
+    const timestamp = Date.now();
     userA = await prisma.user.create({
       data: {
-        email: `userA_sm_${Date.now()}@example.com`,
+        email: `userA_sm_${timestamp}_${Math.random().toString(36).substring(2, 7)}@example.com`,
         passwordHash: "hashed_A",
         name: "User A SM",
       },
     });
     userB = await prisma.user.create({
       data: {
-        email: `userB_sm_${Date.now()}@example.com`,
+        email: `userB_sm_${timestamp}_${Math.random().toString(36).substring(2, 7)}@example.com`,
         passwordHash: "hashed_B",
         name: "User B SM",
       },
     });
     userC = await prisma.user.create({
       data: {
-        email: `userC_sm_${Date.now()}@example.com`,
+        email: `userC_sm_${timestamp}_${Math.random().toString(36).substring(2, 7)}@example.com`,
         passwordHash: "hashed_C",
         name: "User C SM",
       },
     });
   });
 
-  // afterEach는 필요시 주석 해제
+  afterEach(async () => {
+    // 의존성 순서대로 삭제
+    await prisma.notification.deleteMany({}); // Soulmate 참조 가능성
+    await prisma.soulmate.deleteMany({}); // User 참조
+    await prisma.soullinkRequest.deleteMany({});
+    await prisma.profileInterest.deleteMany({});
+    await prisma.answerInterest.deleteMany({});
+    await prisma.answer.deleteMany({});
+    await prisma.bookshelfEntry.deleteMany({});
+    await prisma.user.deleteMany({});
+  });
 
   it("should create a new soulmate relationship between two users", async () => {
     const { userAId, userBId } = getSortedUserIds(userA, userB);

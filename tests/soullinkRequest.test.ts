@@ -22,9 +22,13 @@ describe("SoullinkRequest Model", () => {
     await prisma.user.deleteMany({});
 
     // 테스트용 사용자 (요청 발신자)
+    const timestamp = Date.now();
+    const senderSuffix = Math.random().toString(36).substring(2, 7);
+    const receiverSuffix = Math.random().toString(36).substring(2, 7);
+    
     sender = await prisma.user.create({
       data: {
-        email: `sender_slr_${Date.now()}@example.com`,
+        email: `sender_slr_${timestamp}_${senderSuffix}@example.com`,
         passwordHash: "hashedpassword_sender",
         name: "Sender User SLR",
       },
@@ -33,14 +37,23 @@ describe("SoullinkRequest Model", () => {
     // 테스트용 사용자 (요청 수신자)
     receiver = await prisma.user.create({
       data: {
-        email: `receiver_slr_${Date.now()}@example.com`,
+        email: `receiver_slr_${timestamp}_${receiverSuffix}@example.com`,
         passwordHash: "hashedpassword_receiver",
         name: "Receiver User SLR",
       },
     });
   });
 
-  // afterEach는 필요시 주석 해제
+  afterEach(async () => {
+    await prisma.notification.deleteMany({});
+    await prisma.soulmate.deleteMany({});
+    await prisma.soullinkRequest.deleteMany({});
+    await prisma.profileInterest.deleteMany({});
+    await prisma.answerInterest.deleteMany({});
+    await prisma.answer.deleteMany({});
+    await prisma.bookshelfEntry.deleteMany({});
+    await prisma.user.deleteMany({});
+  });
 
   it("should allow a user to send a soullink request to another user", async () => {
     const soullinkRequest = await prisma.soullinkRequest.create({
@@ -84,10 +97,13 @@ describe("SoullinkRequest Model", () => {
   });
 
   it("should allow a user (sender) to send soullink requests to multiple different users (receivers)", async () => {
+    const anotherTimestamp = Date.now();
+    const anotherSuffix = Math.random().toString(36).substring(2, 7);
     const anotherReceiver = await prisma.user.create({
       data: {
-        email: `receiver2_slr_${Date.now()}@example.com`,
+        email: `receiver2_slr_${anotherTimestamp}_${anotherSuffix}@example.com`,
         passwordHash: "hashedpassword_receiver2",
+        name: "Another Receiver SLR",
       },
     });
 
@@ -105,10 +121,13 @@ describe("SoullinkRequest Model", () => {
   });
 
   it("should allow a user (receiver) to receive soullink requests from multiple different users (senders)", async () => {
+    const anotherTimestamp = Date.now();
+    const anotherSuffix = Math.random().toString(36).substring(2, 7);
     const anotherSender = await prisma.user.create({
       data: {
-        email: `sender2_slr_${Date.now()}@example.com`,
+        email: `sender2_slr_${anotherTimestamp}_${anotherSuffix}@example.com`,
         passwordHash: "hashedpassword_sender2",
+        name: "Another Sender SLR",
       },
     });
 
@@ -165,10 +184,13 @@ describe("SoullinkRequest Model", () => {
       data: { senderId: sender.id, receiverId: receiver.id },
     });
     // 다른 유저가 sender에게 보낸 요청 (이것은 남아있어야 함)
+    const anotherTimestamp = Date.now();
+    const anotherSuffix = Math.random().toString(36).substring(2, 7);
     const anotherUser = await prisma.user.create({
       data: {
-        email: `another_slr_${Date.now()}@example.com`,
+        email: `another_slr_${anotherTimestamp}_${anotherSuffix}@example.com`,
         passwordHash: "pw",
+        name: "Another User SLR",
       },
     });
     await prisma.soullinkRequest.create({
@@ -197,10 +219,13 @@ describe("SoullinkRequest Model", () => {
       data: { senderId: sender.id, receiverId: receiver.id },
     });
     // receiver가 다른 유저에게 보낸 요청 (이것은 남아있어야 함)
+    const anotherTimestamp = Date.now();
+    const anotherSuffix = Math.random().toString(36).substring(2, 7);
     const anotherUser = await prisma.user.create({
       data: {
-        email: `another_slr_${Date.now()}@example.com`,
+        email: `another_slr_${anotherTimestamp}_${anotherSuffix}@example.com`,
         passwordHash: "pw",
+        name: "Another User SLR",
       },
     });
     await prisma.soullinkRequest.create({
